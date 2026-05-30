@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Assistant</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        header {
+            background: #16213e;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #0f3460;
+        }
+        header h1 { font-size: 1.2rem; color: #e94560; }
+        .mode-toggle { display: flex; gap: 8px; }
+        .mode-btn {
+            padding: 6px 16px;
+            border: 1px solid #0f3460;
+            background: transparent;
+            color: #e0e0e0;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .mode-btn.active { background: #e94560; border-color: #e94560; color: white; }
+        .main { display: flex; flex: 1; overflow: hidden; }
+        .sidebar {
+            width: 240px;
+            background: #12122a;
+            border-right: 1px solid #0f3460;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .sidebar-tabs {
+            display: flex;
+            border-bottom: 1px solid #0f3460;
+        }
+        .sidebar-tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #888;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            transition: all 0.2s;
+        }
+        .sidebar-tab.active { color: #e94560; border-bottom: 2px solid #e94560; }
+        .sidebar-panel { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+        .sidebar-panel.active { display: flex; }
+        .sidebar-header {
+            padding: 10px 12px;
+            border-bottom: 1px solid #0f3460;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .sidebar-header span { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+        .new-chat-btn {
+            background: #e94560;
+            border: none;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .new-chat-btn:hover { background: #c73652; }
+        .session-list { flex: 1; overflow-y: auto; padding: 8px; }
+        .session-item {
+            padding: 10px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.82rem;
+            color: #aaa;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: all 0.2s;
+        }
+        .session-item:hover { background: #1a1a3e; color: #e0e0e0; }
+        .session-item.active { background: #0f3460; color: #e0e0e0; }
+        .session-date { font-size: 0.7rem; color: #555; margin-top: 2px; }
+        .memory-list { flex: 1; overflow-y: auto; padding: 8px; }
+        .memory-item {
+            background: #1a1a3e;
+            border: 1px solid #0f3460;
+            border-radius: 6px;
+            padding: 8px 10px;
+            margin-bottom: 6px;
+            font-size: 0.82rem;
+            color: #ccc;
+        }
+        .memory-item.manual { border-color: #e9456044; }
+        .memory-actions { display: flex; gap: 6px; margin-top: 6px; }
+        .mem-btn {
+            padding: 2px 8px;
+            border-radius: 3px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+        .mem-btn.edit { background: #0f3460; color: #e0e0e0; }
+        .mem-btn.delete { background: #3a1020; color: #e94560; }
+        .mem-btn:hover { opacity: 0.8; }
+        .memory-source { font-size: 0.7rem; color: #555; margin-top: 4px; }
+        .add-memory {
+            padding: 10px;
+            border-top: 1px solid #0f3460;
+            display: flex;
+            gap: 6px;
+        }
+        .add-memory input {
+            flex: 1;
+            background: #0f3460;
+            border: 1px solid #0f3460;
+            color: #e0e0e0;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            outline: none;
+        }
+        .add-memory input:focus { border-color: #e94560; }
+        .add-memory button {
+            background: #e94560;
+            border: none;
+            color: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        #chat-window {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+        .message.user { background: #0f3460; align-self: flex-end; border-bottom-right-radius: 4px; }
+        .message.assistant {
+            background: #16213e;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+            border: 1px solid #0f3460;
+        }
+        .message pre {
+            background: #0a0a1a;
+            padding: 12px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 8px 0;
+            font-size: 0.85rem;
+        }
+        .message code { font-family: 'Courier New', monospace; }
+        .run-btn {
+            margin-top: 8px;
+            padding: 4px 12px;
+            background: #e94560;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .run-btn:hover { background: #c73652; }
+        .code-output {
+            background: #0a0a1a;
+            border: 1px solid #e94560;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+        }
+        .input-area {
+            background: #16213e;
+            border-top: 1px solid #0f3460;
+            padding: 16px 24px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+        #message-input {
+            flex: 1;
+            background: #0f3460;
+            border: 1px solid #0f3460;
+            color: #e0e0e0;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            resize: none;
+            min-height: 48px;
+            max-height: 150px;
+            outline: none;
+            font-family: inherit;
+        }
+        #message-input:focus { border-color: #e94560; }
+        #send-btn {
+            background: #e94560;
+            border: none;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            height: 48px;
+        }
+        #send-btn:hover { background: #c73652; }
+        #send-btn:disabled { background: #555; cursor: not-allowed; }
+        .mode-indicator { font-size: 0.75rem; color: #888; margin-bottom: 4px; }
+        .typing { color: #888; font-style: italic; font-size: 0.85rem; }
+        .edit-input {
+            width: 100%;
+            background: #0f3460;
+            border: 1px solid #e94560;
+            color: #e0e0e0;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.82rem;
+            margin-bottom: 4px;
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>AI Assistant</h1>
+    <div class="mode-toggle">
+        <button class="mode-btn active" onclick="setMode('assistant', this)">Assistant</button>
+        <button class="mode-btn" onclick="setMode('coder', this)">Coder</button>
+    </div>
+</header>
+<div class="main">
+    <div class="sidebar">
+        <div class="sidebar-tabs">
+            <button class="sidebar-tab active" onclick="showTab('history', this)">History</button>
+            <button class="sidebar-tab" onclick="showTab('memory', this)">Memory</button>
+        </div>
+        <div class="sidebar-panel active" id="panel-history">
+            <div class="sidebar-header">
+                <span>Chats</span>
+                <button class="new-chat-btn" onclick="newChat()">+ New</button>
+            </div>
+            <div class="session-list" id="session-list"></div>
+        </div>
+        <div class="sidebar-panel" id="panel-memory">
+            <div class="sidebar-header">
+                <span>What I know</span>
+            </div>
+            <div class="memory-list" id="memory-list"></div>
+            <div class="add-memory">
+                <input type="text" id="new-memory-input" placeholder="Add a memory..." />
+                <button onclick="addMemory()">Add</button>
+            </div>
+        </div>
+    </div>
+    <div class="chat-area">
+        <div id="chat-window"></div>
+        <div class="input-area">
+            <textarea id="message-input" placeholder="Type a message... (try 'remember ...' or 'forget ...')" rows="1"></textarea>
+            <button id="send-btn" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+</div>
+<script>
+    let currentMode = "assistant";
+    let currentSessionId = null;
+
+    function showTab(tab, btn) {
+        document.querySelectorAll('.sidebar-tab').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.sidebar-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('panel-' + tab).classList.add('active');
+    }
+
+    function setMode(mode, btn) {
+        currentMode = mode;
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }
+
+    function formatDate(iso) {
+        const d = new Date(iso);
+        return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    }
+
+    function renderSessions(sessions) {
+        const list = document.getElementById('session-list');
+        list.innerHTML = '';
+        sessions.forEach(s => {
+            const div = document.createElement('div');
+            div.className = 'session-item' + (s.id === currentSessionId ? ' active' : '');
+            div.innerHTML = `<div>${s.title}</div><div class="session-date">${formatDate(s.last_active)}</div>`;
+            div.onclick = () => loadSession(s.id, div);
+            list.appendChild(div);
+        });
+    }
+
+    function renderMemories(memories) {
+        const list = document.getElementById('memory-list');
+        list.innerHTML = '';
+        if (memories.length === 0) {
+            list.innerHTML = '<div style="color:#555;font-size:0.8rem;padding:12px;">No memories yet. Start chatting and I will learn about you.</div>';
+            return;
+        }
+        memories.forEach(m => {
+            const div = document.createElement('div');
+            div.className = 'memory-item' + (m.source === 'manual' ? ' manual' : '');
+            div.innerHTML = `
+                <div class="memory-content">${m.content}</div>
+                <div class="memory-source">${m.source === 'manual' ? 'Added manually' : 'Learned automatically'}</div>
+                <div class="memory-actions">
+                    <button class="mem-btn edit" onclick="editMemory(${m.id}, this)">Edit</button>
+                    <button class="mem-btn delete" onclick="deleteMemory(${m.id})">Delete</button>
+                </div>`;
+            list.appendChild(div);
+        });
+    }
+
+    async function addMemory() {
+        const input = document.getElementById('new-memory-input');
+        const content = input.value.trim();
+        if (!content) return;
+        input.value = '';
+        const res = await fetch('/memory/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content })
+        });
+        const memories = await res.json();
+        renderMemories(memories);
+    }
+
+    async function deleteMemory(id) {
+        const res = await fetch('/memory/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+        });
+        const memories = await res.json();
+        renderMemories(memories);
+    }
+
+    function editMemory(id, btn) {
+        const item = btn.closest('.memory-item');
+        const contentDiv = item.querySelector('.memory-content');
+        const current = contentDiv.textContent;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'edit-input';
+        input.value = current;
+        contentDiv.replaceWith(input);
+        input.focus();
+        btn.textContent = 'Save';
+        btn.onclick = async () => {
+            const res = await fetch('/memory/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, content: input.value })
+            });
+            const memories = await res.json();
+            renderMemories(memories);
+        };
+    }
+
+    function renderMessages(messages) {
+        const chatWindow = document.getElementById('chat-window');
+        chatWindow.innerHTML = '';
+        messages.forEach(m => {
+            if (m.role === 'system') return;
+            const wrapper = document.createElement('div');
+            if (m.role === 'assistant') {
+                const indicator = document.createElement('div');
+                indicator.className = 'mode-indicator';
+                indicator.textContent = 'Assistant';
+                wrapper.appendChild(indicator);
+            }
+            const msg = document.createElement('div');
+            msg.className = 'message ' + m.role;
+            if (m.role === 'assistant') {
+                renderContent(msg, m.content);
+            } else {
+                msg.textContent = m.content;
+            }
+            wrapper.appendChild(msg);
+            chatWindow.appendChild(wrapper);
+        });
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    async function loadSession(sessionId, el) {
+        currentSessionId = sessionId;
+        document.querySelectorAll('.session-item').forEach(e => e.classList.remove('active'));
+        if (el) el.classList.add('active');
+        const res = await fetch('/load_session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: sessionId })
+        });
+        const data = await res.json();
+        renderMessages(data.messages);
+    }
+
+    async function newChat() {
+        const res = await fetch('/new_session', { method: 'POST' });
+        const data = await res.json();
+        currentSessionId = data.session_id;
+        document.getElementById('chat-window').innerHTML = '';
+        renderSessions(data.sessions);
+    }
+
+    function addMessage(role) {
+        const chatWindow = document.getElementById('chat-window');
+        const wrapper = document.createElement('div');
+        if (role === 'assistant') {
+            const indicator = document.createElement('div');
+            indicator.className = 'mode-indicator';
+            indicator.textContent = currentMode === 'coder' ? 'Coder (qwen2.5)' : 'Assistant (llama3)';
+            wrapper.appendChild(indicator);
+        }
+        const msg = document.createElement('div');
+        msg.className = 'message ' + role;
+        wrapper.appendChild(msg);
+        chatWindow.appendChild(wrapper);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+        return msg;
+    }
+
+    function renderContent(element, text) {
+        const parts = text.split(/(```[\s\S]*?```)/g);
+        element.innerHTML = '';
+        parts.forEach(part => {
+            if (part.startsWith('```')) {
+                const code = part.replace(/```(\w+)?/, '').replace(/```$/, '').trim();
+                const pre = document.createElement('pre');
+                const codeEl = document.createElement('code');
+                codeEl.textContent = code;
+                pre.appendChild(codeEl);
+                const runBtn = document.createElement('button');
+                runBtn.className = 'run-btn';
+                runBtn.textContent = 'Run Code';
+                runBtn.onclick = () => runCode(code, runBtn);
+                element.appendChild(pre);
+                element.appendChild(runBtn);
+            } else {
+                const span = document.createElement('span');
+                span.textContent = part;
+                element.appendChild(span);
+            }
+        });
+    }
+
+    async function runCode(code, btn) {
+        btn.textContent = 'Running...';
+        btn.disabled = true;
+        const response = await fetch('/run_code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code })
+        });
+        const data = await response.json();
+        const output = document.createElement('div');
+        output.className = 'code-output';
+        output.textContent = data.output || '(no output)';
+        btn.parentNode.insertBefore(output, btn.nextSibling);
+        btn.textContent = 'Run Code';
+        btn.disabled = false;
+    }
+
+    async function sendMessage() {
+        const input = document.getElementById('message-input');
+        const message = input.value.trim();
+        if (!message) return;
+        const sendBtn = document.getElementById('send-btn');
+        sendBtn.disabled = true;
+        input.value = '';
+        const userMsg = addMessage('user');
+        userMsg.textContent = message;
+        const assistantMsg = addMessage('assistant');
+        assistantMsg.innerHTML = '<span class="typing">thinking...</span>';
+        const response = await fetch('/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message, mode: currentMode })
+        });
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let fullText = '';
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+                        if (data.token) {
+                            fullText += data.token;
+                            renderContent(assistantMsg, fullText);
+                            document.getElementById('chat-window').scrollTop = document.getElementById('chat-window').scrollHeight;
+                        }
+                        if (data.done) {
+                            setTimeout(async () => {
+                                const res = await fetch('/memories');
+                                const memories = await res.json();
+                                renderMemories(memories);
+                            }, 3000);
+                            const res = await fetch('/init');
+                            const d = await res.json();
+                            renderSessions(d.sessions);
+                        }
+                    } catch(e) {}
+                }
+            }
+        }
+        sendBtn.disabled = false;
+        input.focus();
+    }
+
+    document.getElementById('message-input').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    document.getElementById('new-memory-input').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') addMemory();
+    });
+
+    async function init() {
+        const res = await fetch('/init');
+        const data = await res.json();
+        currentSessionId = data.session_id;
+        renderSessions(data.sessions);
+        renderMessages(data.messages);
+        renderMemories(data.memories);
+    }
+
+    init();
+</script>
+</body>
+</html>
